@@ -3,9 +3,9 @@ This folder contains the scripts, data, plots, and results
 for the master thesis "Multivariate Probabilistic Modeling of
 Intraday Elctricity Prices Using Normalizing Flows" from Sezen
 Kilicatslan for her degree in Information Systems at the Humboldt-Universität 
-zu Berlin (2021).
+zu Berlin (2022).
 
-### Content of the files###
+### Content of the files
 download_prices.py downloads the price data from the website
 https://energy-charts.info/?l=en&c=DE and loads the other data from 
 user's local system. Data preprocessing and train-test split is also
