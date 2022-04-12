@@ -86,7 +86,7 @@ def get_pandas_df(URL):
     return df.astype('float32')
 
 """
-Converts a column of a df into 4 columns, each column corresponding to quarter hours
+Convert the price column into 4 columns, each column corresponding to quarter hours
 """
 def getMultiDim(colname, data, newnames):
     Q1 = data.loc[data.index.minute == 00, colname].rename(newnames[0])

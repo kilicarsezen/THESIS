@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from download_prices import setseed
 from pingouin import multivariate_normality
 pd.set_option('display.max_columns', 50)
+
 def getnormdata(data):
     norm = layers.experimental.preprocessing.Normalization()
     norm.adapt(data)
@@ -39,8 +40,6 @@ def Two_moon_visual(conditioned_train, z, samples,  x, data_y):
     axes[1, 1].set(title="Generated data space X", label="x", ylabel="y")
     axes[1, 1].set_xlim([-4, 4])
     axes[1, 1].set_ylim([-2, 2])
-
-    plt.show()
 
 data, label = make_moons(3000, noise=0.05)
 normalized_data = getnormdata(data.astype("float32"))
@@ -76,4 +75,3 @@ plt.ylim([-4, 4])
 plt.xticks(fontsize=30)
 plt.yticks(fontsize=30)
 fig.tight_layout()
-plt.show()

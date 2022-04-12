@@ -14,11 +14,10 @@ from rpy2.robjects.vectors import StrVector
 import rpy2.robjects as ro
 from rpy2.robjects import pandas2ri
 from rpy2.robjects.conversion import localconverter
-preds = pd.read_csv("preds.csv")
-obs = pd.read_csv("obs.csv")
+
 import matplotlib.dates as mdates
 mpl.rcParams.update(mpl.rcParamsDefault)
-path ="C:/Users/Sezen/MA_THESIS/src/Plots/"
+path ="C:/Users/Sezen/MA_THESIS/Evaluation Plots/"
 def energy_score_ensemble(obs, predictions):
     m = predictions.shape[0]
     es1 = (1 / m) * np.sum(np.linalg.norm(predictions - obs, axis=1))
@@ -89,6 +88,7 @@ def plot_score(scores, index, mdl_name, labels, outliers, max_ytick,tick_freq=2)
 
 def pairplot_evaluation(test_set, samples, mdl, outliers):
     print("pair plot for {} {}".format(mdl, outliers))
+    fig=plt.figure()
     obs_pp = test_set.copy()
     samples_pp = samples.copy()
     target_cols = obs_pp.keys()
@@ -154,7 +154,7 @@ def plot_4D(observations, predictions):
     ax2.set_xlim3d(-15, 10)
     ax2.set_ylim3d(-15, 10)
     ax2.set_zlim3d(-15, 10)
-
+    plt.close(fig)
 
 def rank_(obs, preds):
     obs_preds = np.vstack((obs, preds))
@@ -238,6 +238,7 @@ def plot_scenarios(reality, samples, n_sample, models, outliers):
             axs[i,0].set_ylabel("Price Delta on \n"+observation.index[i].strftime("%m/%d/%Y, %H:%M") + " \n €/MWh" ,
                                 fontdict={'fontsize': 50}, ha='center', rotation='horizontal')
             axs[i,0].yaxis.set_label_coords(-0.55, 0.5)
+        plt.close(fig)
         colors = ['grey', 'green']
         lines = [Line2D([0], [0], color=c, linewidth=3, linestyle='-') for c in colors]
         labels = ['Realization', 'Samples']
@@ -287,7 +288,7 @@ def plot_kde_dim(samples, observations, models, outliers):
     # plt.figure()
     colors=['red','green','goldenrod','darkmagenta','blue']
     for dim in range(observations.shape[1]):
-        plt.figure(num="KDE Plot {} for Dimension {}".format(outliers, dim))
+        fig = plt.figure(num="KDE Plot {} for Dimension {}".format(outliers, dim))
         
         for idx, mdl in enumerate(models):
             if mdl=='conditional realnvp':
@@ -310,7 +311,7 @@ def plot_kde_dim(samples, observations, models, outliers):
         plt.ylabel(ylabel="Probability Density", fontsize=14)
         plt.tight_layout()
         plt.savefig(path +'KDE Plot {} for Dimension {} .png'.format(outliers, dim))
-    plt.close("all")
+        plt.close(fig)
 
 def lineplot_(observations,samples, model_names): 
     print("mean value for observations \n {}".format(observations.mean()))
@@ -357,4 +358,4 @@ def lineplot_(observations,samples, model_names):
     plt.xticks(fontsize=16)
     plt.yticks(fontsize=16)
     plt.savefig(path +'Lineplot.png')
-    plt.show()
+    plt.close(fig)

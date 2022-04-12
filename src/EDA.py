@@ -5,17 +5,16 @@ from matplotlib import pyplot as plt
 import matplotlib.ticker as plticker
 import seaborn as sns
 import pandas as pd
-from evaluation import multi_norm_check
+# from evaluation import multi_norm_check
 import rpy2.robjects as ro
 from rpy2.robjects.packages import importr
 from rpy2.robjects import pandas2ri
-
 from rpy2.robjects.conversion import localconverter
+plt.close('all')
 pd.set_option('display.max_rows', 100)
-
 sns.set_theme()
 from scipy.stats import norm, stats
-
+path_eda = "C:/Users/Sezen/MA_THESIS/EDA_plots/"
 target_col_names = ['DA_Q1', 'DA_Q2', 'DA_Q3', 'DA_Q4']
 
 train_sets, test_sets = get_train_test_sets(dataset=ID3_quarterly_EDA,
@@ -26,21 +25,79 @@ train_sets, test_sets = get_train_test_sets(dataset=ID3_quarterly_EDA,
                                                                         'load_Q4_forecast'],
                                             cyclical_features=['Hour'],
                                             n_sample=1000)
-# sns.boxplot(data=ID3_quarterly_EDA[target_col_names])
-# plt.show()
-# print(ID3_quarterly_EDA[target_col_names].describe())
-# sns.pairplot(ID3_quarterly_EDA[target_col_names])
-# plt.tight_layout()
-# plt.savefig("C:/Users/Sezen/PycharmProjects/MA_THESIS/DA_ID_original_pairplot.png")
-# plt.show()
-path_eda = "C:/Users/Sezen/MA_THESIS/EDA_plots/"
+
+def price_boxplot(price_data):
+    sns.boxplot(data=price_data)
+    # ax.set(xlabel='Quarter of Hour [-]', ylabel='Price Delta [EUR/MWh]')
+    plt.xticks(ticks=[0,1,2,3],labels=['Q1', 'Q2','Q3','Q4'],fontsize = 10)
+    plt.xlabel('Quarter  [-]',fontsize = 10)
+    plt.ylabel('Delta Price [EUR/MWh]',fontsize = 10)
+    plt.savefig(path_eda+'price_box.png')
+price_boxplot(ID3_quarterly_EDA[target_col_names])
+
+def summary(x, **kwargs):
+    label = x.describe()[['mean', 'std']].round()
+    label['skewness'] = x.skew().round()
+    label['kurtosis'] = x.kurt().round()
+    ax = plt.gca()
+    ax.set_axis_off()
+    # use .to_string()
+    ax.annotate(label[['skewness', 'kurtosis']].to_string(), xy=(0.4, 1), xycoords=ax.transAxes,
+                fontweight='demibold', fontsize=24, verticalalignment='top', horizontalalignment='right',
+                backgroundcolor='white', color='xkcd:dark blue'
+                )
+    ax.annotate(label[['mean', 'std']].to_string(), xy=(1, 1), xycoords=ax.transAxes,
+                fontweight='demibold', fontsize=24, verticalalignment='top', horizontalalignment='right',
+                backgroundcolor='white', color='xkcd:dark blue'
+                )
+
+def plot_grid(data, figname):
+    g = sns.PairGrid(data)
+    g.map_diag(sns.histplot, kde=True, stat='density', label='samples')
+    g.map_diag(summary)
+    g.map_upper(sns.scatterplot, edgecolor='w')
+    g.map_lower(sns.kdeplot)
+    for ax in g.axes.flatten():
+        ax.set_xlabel(ax.get_xlabel(), rotation=0, fontsize=32)
+        ax.set_xticks(np.arange(-400,200,100))
+        ax.tick_params(axis='both', labelsize=28)
+        ax.set_ylabel(ax.get_ylabel(), rotation=90, fontsize=32)
+        ax.set_yticks(np.arange(-400,200,100))
+
+        loc = plticker.MultipleLocator(100)  # this locator puts ticks at regular intervals
+        ax.xaxis.set_major_locator(loc)
+        loc = plticker.MultipleLocator(100)  # this locator puts ticks at regular intervals
+
+        ax.yaxis.set_major_locator(loc)
+
+        # set y labels alignment
+        ax.yaxis.get_label().set_horizontalalignment('right')
+    replacements = {'DA_Q1': 'Delta Price Q1 [EUR/MWh]', 'DA_Q2': 'Delta Price Q2 [EUR/MWh]',
+                'DA_Q3': 'Delta Price Q3 [EUR/MWh]', 'DA_Q4': 'Delta Price Q4 [EUR/MWh]'}
+    for i in range(4):
+        for j in range(4):
+            xlabel = g.axes[i][j].get_xlabel()
+            ylabel = g.axes[i][j].get_ylabel()
+            if xlabel in replacements.keys():
+                g.axes[i][j].set_xlabel(replacements[xlabel])
+            if ylabel in replacements.keys():
+                g.axes[i][j].set_ylabel(replacements[ylabel])
+
+    g.fig.set_size_inches(30, 25)
+    # g.fig.suptitle('Pair plot of delta ID prices', y=1)
+    plt.tight_layout()
+    plt.savefig(path_eda +figname+".png")
+
+# plot_grid(ID3_quarterly_EDA[target_col_names], 'DA_ID_pairplot_original')
+
+
 ID3_quarterly_EDA = ID3_quarterly_EDA.loc[
     (ID3_quarterly_EDA['DA_Q1'] > -150)  & (ID3_quarterly_EDA['DA_Q2'] > -190) & (ID3_quarterly_EDA['DA_Q3'] > -100) & (
             ID3_quarterly_EDA['DA_Q4'] > -150) & (ID3_quarterly_EDA['DA_Q2'] < ID3_quarterly_EDA['DA_Q2'].max()) & (
                 ID3_quarterly_EDA['DA_Q3'] < ID3_quarterly_EDA['DA_Q3'].max())& (
                 ID3_quarterly_EDA['DA_Q4'] < ID3_quarterly_EDA['DA_Q4'].max())]
-
-multi_norm_check(ID3_quarterly_EDA[target_col_names], path_eda,'dh',"eda_qq_plot.png")
+#plots the chsquare qq plot of price delta, uses an R package 
+# multi_norm_check(ID3_quarterly_EDA[target_col_names], path_eda,'dh',"eda_qq_plot.png")
 
 def plot_marginals(data):
     f, axes = plt.subplots(2, 2, figsize=(15, 10), sharex=True)
@@ -95,8 +152,8 @@ def plot_marginals(data):
                 backgroundcolor='white', color='xkcd:dried blood')
     plt.tight_layout()
     plt.savefig(path_eda+"distplotdeltaprices.png")
-    # plt.show()
-# plot_marginals(ID3_quarterly_EDA[target_col_names])
+    plt.close(f)
+plot_marginals(ID3_quarterly_EDA[target_col_names])
 
 
 # explore the corr between cat variables and price delta
@@ -119,7 +176,6 @@ def box_plot(data, colname):
     # plt.subplots_adjust(hspace=2)
     plt.tight_layout()
     # plt.savefig("C:/Users/Sezen/PycharmProjects/MA_THESIS/plots/hourbox.png")
-    plt.show()
 
 # sns.boxplot(data=ID3_quarterly_EDA[target_col_names])
 # box_plot(ID3_quarterly_EDA, 'Hour')
@@ -140,82 +196,32 @@ def boxplot_categorized_features(data, colname, target_col_names, n_bins=3, stra
     sns.set(rc={'figure.figsize': (50, 50)})
     plt.subplots_adjust(left=0.1, right=0.15, top=0.5, bottom=0.1, hspace=5)
     plt.tight_layout()
-    plt.show()
 
 
 # boxplot_categorized_features(ID3_quarterly,'load_Q4_error', target_col_names)
 
-
-def summary(x, **kwargs):
-    label = x.describe()[['mean', 'std']].round()
-    label['skewness'] = x.skew().round()
-    label['kurtosis'] = x.kurt().round()
-    ax = plt.gca()
-    ax.set_axis_off()
-    # use .to_string()
-    ax.annotate(label[['skewness', 'kurtosis']].to_string(), xy=(0.4, 1), xycoords=ax.transAxes,
-                fontweight='demibold', fontsize=24, verticalalignment='top', horizontalalignment='right',
-                backgroundcolor='white', color='xkcd:dark blue'
-                )
-    ax.annotate(label[['mean', 'std']].to_string(), xy=(1, 1), xycoords=ax.transAxes,
-                fontweight='demibold', fontsize=24, verticalalignment='top', horizontalalignment='right',
-                backgroundcolor='white', color='xkcd:dark blue'
-                )
-
-
-def plot_grid(data):
-    g = sns.PairGrid(data)
-    g.map_diag(sns.histplot, kde=True, stat='density', label='samples')
-    g.map_diag(summary)
-    g.map_upper(sns.scatterplot, edgecolor='w')
-    g.map_lower(sns.kdeplot)
-    for ax in g.axes.flatten():
-        ax.set_xlabel(ax.get_xlabel(), rotation=0, fontsize=34)
-        ax.set_xticks(np.arange(-400,200,100))
-        ax.tick_params(axis='both', labelsize=28)
-        ax.set_ylabel(ax.get_ylabel(), rotation=90, fontsize=34)
-        ax.set_yticks(np.arange(-400,200,100))
-
-        loc = plticker.MultipleLocator(100)  # this locator puts ticks at regular intervals
-        ax.xaxis.set_major_locator(loc)
-        loc = plticker.MultipleLocator(100)  # this locator puts ticks at regular intervals
-
-        ax.yaxis.set_major_locator(loc)
-
-        # set y labels alignment
-        ax.yaxis.get_label().set_horizontalalignment('right')
-    g.fig.set_size_inches(30, 23)
-
-    # g.fig.suptitle('Pair plot of delta ID prices', y=1)
-    plt.tight_layout()
-    plt.savefig(path_eda +"DA_ID_pairplot.png")
-
-
-# plot_grid(ID3_quarterly_EDA[target_col_names])
-
-
-def scatter(data, col_name, figname):
-    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(10,5),dpi=150)
+def scatter(data, col_name, col_name_, figname):
+    fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(10,6),dpi=150)
     # fig.suptitle('Scatter Plot of Delta Prices and ' + col_name, size=20)
     # ax1.set_title('Delta Price in Qurater 1 \n vs ' + col_name[0])
     sns.scatterplot(y='DA_Q1', x=col_name[0], data=data, ax=ax1)
-    ax1.set_xlabel(col_name[0],fontsize = 16)
-    ax1.set_ylabel('Price Delta Q1',fontsize = 16)
+    ax1.set_xlabel(col_name[0] + " " +col_name_,fontsize = 12)
+    ax1.set_ylabel('Delta Price Q1 [EUR/MWh]',fontsize = 12)
 
     # ax2.set_title('Delta Price in Qurater 2 \n vs ' + col_name[1])
     sns.scatterplot(y='DA_Q2', x=col_name[1], data=data, ax=ax2)
-    ax2.set_xlabel(col_name[1],fontsize = 16)
-    ax2.set_ylabel('Price Delta Q2',fontsize = 16)
+    ax2.set_xlabel(col_name[1]+ " " +col_name_,fontsize = 12)
+    ax2.set_ylabel('Delta Price Q2 [EUR/MWh]',fontsize = 12)
 
     # ax3.set_title('Delta Price in Qurater 3 \n vs ' + col_name[2])
     sns.scatterplot(y='DA_Q3', x=col_name[2], data=data, ax=ax3)
-    ax3.set_xlabel(col_name[2],fontsize = 16)
-    ax3.set_ylabel('Price Delta Q3',fontsize = 16)
+    ax3.set_xlabel(col_name[2]+ " " + col_name_,fontsize = 12)
+    ax3.set_ylabel('Delta Price Q3 [EUR/MWh]',fontsize = 12)
 
     # ax4.set_title('Delta Price in Qurater 4 \n vs ' + col_name[3])
     sns.scatterplot(y='DA_Q4', x=col_name[3], data=data, ax=ax4)
-    ax4.set_xlabel(col_name[3],fontsize = 16)
-    ax4.set_ylabel('Price Delta Q4',fontsize = 16)
+    ax4.set_xlabel(col_name[3]+ " " + col_name_,fontsize = 12)
+    ax4.set_ylabel('Delta Price Q4 [EUR/MWh]',fontsize = 12)
 
 
     # ax1.tick_params(axis='both', labelsize=15)
@@ -228,13 +234,14 @@ def scatter(data, col_name, figname):
     plt.tight_layout()
     plt.savefig(path_eda+ figname + ".png")
 
-scatter(ID3_quarterly_EDA,['Wind_Q1_error','Wind_Q2_error','Wind_Q3_error','Wind_Q4_error'],"DA_ID_wind1234_scatter")
-scatter(ID3_quarterly_EDA,['Solar_Q1_error','Solar_Q2_error','Solar_Q3_error','Solar_Q4_error'],"DA_ID_solar1234_scatter")
-scatter(ID3_quarterly_EDA,['load_Q1_error','load_Q2_error','load_Q3_error','load_Q4_error'],"DA_ID_demand1234_scatter")
-# scatter(ID3_quarterly_EDA[target_col_names],'DA_Q1')
-scatter(ID3_quarterly_EDA, ['Conventional Q1', 'Conventional Q2','Conventional Q3','Conventional Q4'], "DA_ID_conventional_scatter")
-# scatter(ID3_quarterly_EDA, ['Conventional', 'Conventional','Conventional','Conventional'])
-# print(ID3_quarterly_EDA.columns)
+scatter(ID3_quarterly_EDA,['Wind_Q1_error','Wind_Q2_error','Wind_Q3_error','Wind_Q4_error'], "[MW]",
+                        "DA_ID_wind1234_scatter")
+scatter(ID3_quarterly_EDA,['Solar_Q1_error','Solar_Q2_error','Solar_Q3_error','Solar_Q4_error'], "[MW]",
+                        "DA_ID_solar1234_scatter")
+scatter(ID3_quarterly_EDA,['load_Q1_error','load_Q2_error','load_Q3_error','load_Q4_error'], "[MW]",
+                        "DA_ID_demand1234_scatter")
+scatter(ID3_quarterly_EDA, ['Conventional Q1', 'Conventional Q2','Conventional Q3','Conventional Q4'],  " [MW]",
+                        "DA_ID_conventional_scatter")
 
 def plot_DA_ID(data, col_QH, col_DA):
     mean_ID_prices = data.groupby(data.index.hour)[col_QH].mean()
@@ -250,15 +257,16 @@ def plot_DA_ID(data, col_QH, col_DA):
     plt.plot(mean_DA_repeated, drawstyle='steps-pre', label='Day Ahead')
     plt.xticks(np.arange(0, 97, 4), ticks, rotation=90, fontsize=10)
     plt.yticks()
-    plt.xlabel('Quarter of the Day')
-    plt.ylabel(' Price (€/MWh)')
+    plt.xlabel('Quarter of the Day [-]')
+    plt.ylabel(' Price [EUR/MWh]')
     plt.legend(loc="upper left", prop={'size': 12})
     plt.savefig(path_eda +"IDfollowsdayahead.png")
-    plt.show()
+    plt.close()
 
 
-# plot_DA_ID(ID3_quarterly_EDA, ['Q1', 'Q2', 'Q3','Q4'], 'Day Ahead Auction')
+plot_DA_ID(ID3_quarterly_EDA, ['Q1', 'Q2', 'Q3','Q4'], 'Day Ahead Auction')
 # print(multivariate_normality(ID3_quarterly_EDA[target_col_names], alpha=.05))
+
 def plot_DA_ID_hour(data, col_QH, col_DA):
     mean_ID_prices = data.groupby(data.index.hour)[col_QH].mean()
     df = mean_ID_prices.stack().reset_index(name='Value').rename(columns={'level_2': 'Quarter'})
@@ -277,10 +285,10 @@ def plot_DA_ID_hour(data, col_QH, col_DA):
     plt.xticks(np.arange(0, 97, 4), ticks, rotation=90, fontsize=10)
     plt.yticks()
     plt.xlabel('Quarter of the Day')
-    plt.ylabel(' Price (€/MWh)')
+    plt.ylabel(' Price [EUR/MWh]')
     plt.legend(loc="upper left", prop={'size': 12})
     plt.savefig("C:/Users/Sezen/PycharmProjects/MA_THESIS/plots for the paper/IDfollowsdayahead.png")
-    plt.show()
+    plt.close()
 
 # plot_DA_ID_hour(ID3_quarterly_EDA, ['Q1', 'Q2', 'Q3','Q4'], 'Day Ahead Auction')
 ID3_quarterly_EDA.loc[:, 'Average Load Forecast'] = ID3_quarterly_EDA.loc[:,
@@ -292,10 +300,10 @@ ID3_quarterly_EDA.loc[:, 'Average Load Actual'] = ID3_quarterly_EDA.loc[:,
 ID3_quarterly_EDA.loc[:, 'Average Load Error'] = ID3_quarterly_EDA.loc[:,
                                                  'Average Load Forecast'] - ID3_quarterly_EDA.loc[:,
                                                                             'Average Load Actual']
-# scatter(ID3_quarterly_EDA,'Average Load Actual', 'Average Load Actual')
-# scatter(ID3_quarterly_EDA,'Average Load Forecast', 'Average Load Forecast')
+# scatter(ID3_quarterly_EDA,'Average Load Actual', "[MW]",'Average Load Actual')
+# scatter(ID3_quarterly_EDA,'Average Load Forecast', "[MW]", 'Average Load Forecast')
 # scatter(ID3_quarterly_EDA,['Average Load Error','Average Load Error','Average Load Error','Average Load Error' ],
-# 'Average Load Error')
+#  "[MW]",'Average Load Error')
 #
 ID3_quarterly_EDA.loc[:, 'average_wind_forecast'] = ID3_quarterly_EDA.loc[:,
                                                     ['Wind_Q1_forecast', 'Wind_Q2_forecast', 'Wind_Q3_forecast',
@@ -307,7 +315,7 @@ ID3_quarterly_EDA.loc[:, 'Average Wind Error'] = ID3_quarterly_EDA.loc[:,
                                                  'average_wind_actual'] - ID3_quarterly_EDA.loc[:,
                                                                           'average_wind_forecast']
 # scatter(ID3_quarterly_EDA, ['Average Wind Error','Average Wind Error','Average Wind Error','Average Wind Error'],
-# 'Average Wind Error')
+#  "[MW]",'Average Wind Error')
 #
 
 ID3_quarterly_EDA.loc[:, 'Conventional/Wind Forecast Error Q1'] =  ID3_quarterly_EDA.loc[ID3_quarterly_EDA['Wind_Q1_error']!=0,
@@ -324,7 +332,7 @@ ID3_quarterly_EDA.loc[:, 'Conventional/Wind Forecast Error Q4'] = ID3_quarterly_
                                                                           ID3_quarterly_EDA['Wind_Q4_error']!=0,
                                                                                         'Wind_Q4_error']          
 scatter(ID3_quarterly_EDA, ['Conventional/Wind Forecast Error Q1','Conventional/Wind Forecast Error Q2',
-'Conventional/Wind Forecast Error Q3','Conventional/Wind Forecast Error Q4'], "DA_ID_conventional-wind1234_scatter")
+'Conventional/Wind Forecast Error Q3','Conventional/Wind Forecast Error Q4'], "[-]","DA_ID_conventional-wind1234_scatter")
 
 
 ID3_quarterly_EDA.loc[:, 'average_solar_forecast'] = ID3_quarterly_EDA.loc[:,
@@ -336,7 +344,7 @@ ID3_quarterly_EDA.loc[:, 'average_solar_actual'] = ID3_quarterly_EDA.loc[:,
 ID3_quarterly_EDA.loc[:, 'average_solar_error'] = ID3_quarterly_EDA.loc[:,
                                                   'average_solar_actual'] - ID3_quarterly_EDA.loc[:,
                                                                             'average_solar_forecast']
-# scatter(ID3_quarterly_EDA, 'average_solar_error', 'average_solar_error')
+# scatter(ID3_quarterly_EDA, 'average_solar_error',  "[MW]",'average_solar_error')
 #
 ID3_quarterly_EDA.loc[:, 'Conventional/Solar Forecast Error Q1'] = ID3_quarterly_EDA.loc[
                                                                           ID3_quarterly_EDA['Solar_Q1_error']!=0,
@@ -359,7 +367,7 @@ ID3_quarterly_EDA.loc[:, 'Conventional/Solar Forecast Error Q4'] = ID3_quarterly
                                                                           ID3_quarterly_EDA['Solar_Q4_error']!=0,
                                                                                         'Solar_Q4_error']                                
 scatter(ID3_quarterly_EDA, ['Conventional/Solar Forecast Error Q1','Conventional/Solar Forecast Error Q2',
-'Conventional/Solar Forecast Error Q3','Conventional/Solar Forecast Error Q4'], "DA_ID_conventional-solar1234_scatter")
+'Conventional/Solar Forecast Error Q3','Conventional/Solar Forecast Error Q4'], "[-]","DA_ID_conventional-solar1234_scatter")
 
 ID3_quarterly_EDA.loc[:, 'Conventional/Demand Forecast Error Q1'] = ID3_quarterly_EDA.loc[
                                                                           ID3_quarterly_EDA['load_Q1_error']!=0,
@@ -382,7 +390,7 @@ ID3_quarterly_EDA.loc[:, 'Conventional/Demand Forecast Error Q4'] = ID3_quarterl
                                                                           ID3_quarterly_EDA['load_Q4_error']!=0,
                                                                                         'load_Q4_error']                                
 scatter(ID3_quarterly_EDA, ['Conventional/Demand Forecast Error Q1','Conventional/Demand Forecast Error Q2',
-'Conventional/Demand Forecast Error Q3','Conventional/Demand Forecast Error Q4'],"DA_ID_conventional-demand1234_scatter")
+'Conventional/Demand Forecast Error Q3','Conventional/Demand Forecast Error Q4'], "[-]","DA_ID_conventional-demand1234_scatter")
 
 
 ID3_quarterly_EDA.loc[:, 'Average Renewable Actual'] = ID3_quarterly_EDA.loc[:,
@@ -394,7 +402,7 @@ ID3_quarterly_EDA.loc[:, 'Average Renewable Forecast'] = ID3_quarterly_EDA.loc[:
 ID3_quarterly_EDA.loc[:, 'Average Renewable Error'] = ID3_quarterly_EDA.loc[:,
                                                       'Average Renewable Actual'] - ID3_quarterly_EDA.loc[:,
                                                                                     'Average Renewable Forecast']
-# scatter(ID3_quarterly_EDA,'Average Renewable Error','Average Renewable Error')
+# scatter(ID3_quarterly_EDA,'Average Renewable Error', "[MW]",'Average Renewable Error')
 
 #
 ID3_quarterly_EDA.loc[:, 'Renewable/Average Load Actual'] = ID3_quarterly_EDA.loc[:,
@@ -404,7 +412,7 @@ ID3_quarterly_EDA.loc[:, 'Renewable Forecast/Average Load Forecast'] = ID3_quart
                                                                        'Average Renewable Forecast'] / \
                                                                        ID3_quarterly_EDA.loc[:,
                                                                        'Average Load Forecast']
-# scatter(ID3_quarterly_EDA,'Renewable Forecast/Average Load Forecast','Renewable Forecast/Average Load Forecast')
+# scatter(ID3_quarterly_EDA,'Renewable Forecast/Average Load Forecast', "[-]",'Renewable Forecast/Average Load Forecast')
 
 #
 ID3_quarterly_EDA.loc[:, 'Conventional/Average Load Actual'] = ID3_quarterly_EDA.loc[:,
@@ -413,8 +421,8 @@ ID3_quarterly_EDA.loc[:, 'Conventional/Average Load Actual'] = ID3_quarterly_EDA
 ID3_quarterly_EDA.loc[:, 'Conventional/Average Load Forecast'] = ID3_quarterly_EDA.loc[:,
                                                                  'Conventional'] / ID3_quarterly_EDA.loc[:,
                                                                                    'Average Load Forecast']
-# scatter(ID3_quarterly_EDA,'Conventional/Average Load Actual','Conventional/Average Load Actual')
-# scatter(ID3_quarterly_EDA,'Conventional/Average Load Forecast','Conventional/Average Load Forecast')
+# scatter(ID3_quarterly_EDA,'Conventional/Average Load Actual',"[-]",'Conventional/Average Load Actual')
+# scatter(ID3_quarterly_EDA,'Conventional/Average Load Forecast',"[-]",'Conventional/Average Load Forecast')
 
 #
 ID3_quarterly_EDA.loc[:, 'Conventional/Average Renewable Actual'] = ID3_quarterly_EDA.loc[:,
@@ -423,7 +431,7 @@ ID3_quarterly_EDA.loc[:, 'Conventional/Average Renewable Actual'] = ID3_quarterl
 ID3_quarterly_EDA.loc[:, 'Conventional/Average Renewable Forecast'] = ID3_quarterly_EDA.loc[:,
                                                                       'Conventional'] / ID3_quarterly_EDA.loc[:,
                                                                                         'Average Renewable Forecast']
-# scatter(ID3_quarterly_EDA,'Conventional/Average Renewable Forecast','Conventional/Average Renewable Forecast')
+# scatter(ID3_quarterly_EDA,'Conventional/Average Renewable Forecast',"[-]",'Conventional/Average Renewable Forecast')
 
 
 ID3_quarterly_EDA.loc[:, 'Conventional/Average Renewable Error'] = ID3_quarterly_EDA.loc[:,
@@ -433,15 +441,13 @@ ID3_quarterly_EDA.loc[:, 'Conventional/Average Load Error'] = ID3_quarterly_EDA.
                                                               ID3_quarterly_EDA.loc[:,
                                                               'Average Load Error']
 
-# scatter(ID3_quarterly_EDA,'Conventional/Average Renewable Error','Conventional/Average Renewable Error')
+# scatter(ID3_quarterly_EDA,'Conventional/Average Renewable Error',"[-]",'Conventional/Average Renewable Error')
 # scatter(ID3_quarterly_EDA.loc[ID3_quarterly_EDA['Conventional/Average Renewable Error']<100],'Conventional/Average
-# Renewable Error','Conventional/Average Renewable Error')
+# Renewable Error',"[-]",'Conventional/Average Renewable Error')
 # scatter(ID3_quarterly_EDA.loc[ID3_quarterly_EDA['Conventional/Average Load Error']<100],
-# 'Conventional/Average Load Error','Conventional/Average Load Error')
+# 'Conventional/Average Load Error',"[-]",'Conventional/Average Load Error')
 
 # print(ID3_quarterly_EDA.loc[ID3_quarterly_EDA['Solar_Q1_forecast']>0].corr()[target_col_names])
 # print(ID3_quarterly_EDA.corr()[target_col_names])
 
 # plot_marginals(ID3_quarterly_EDA[target_col_names])
-
-plt.show()

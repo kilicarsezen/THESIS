@@ -2,7 +2,7 @@ import warnings
 import numpy as np
 import sklearn
 
-
+#Adapted from https://johaupt.github.io/blog/columnTransformer_feature_names.html
 def get_feature_names(column_transformer):
 
     """Get feature names from all transformers.
